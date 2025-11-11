@@ -1,28 +1,104 @@
 Proyek Scraper Harga SISKA Jatim (FastAPI + MySQL)
 
-Proyek ini adalah sebuah aplikasi API yang dibuat dengan FastAPI yang bertugas untuk melakukan scraping data harga komoditas dari website SISKA Jatim.
+Sebuah aplikasi API (FastAPI) untuk melakukan scraping data harga komoditas dari website SISKA Jatim, membersihkannya, dan menyimpannya ke database MySQL.
 
-Data yang telah di-scrape akan melalui proses pembersihan (cleaning) dan transformasi (dari format wide ke long) sebelum akhirnya disimpan ke dalam database MySQL.
+Proyek ini dirancang untuk berjalan secara otomatis (via panggilan API) untuk mengambil data harian, melakukan pembersihan dan transformasi data, lalu menyimpannya dalam format long yang siap untuk dianalisis.
+
+Fitur Utama
+
+🚀 API Server: Dibangun dengan FastAPI untuk endpoint yang cepat dan dokumentasi otomatis (/docs).
+
+🕷️ Scraper Canggih: Menggunakan Selenium (headless) untuk menangani website JavaScript-heavy.
+
+🧹 Pembersihan Data: Menggunakan Pandas untuk membersihkan nama kolom, menghapus kategori, dan memvalidasi harga.
+
+🔄 Transformasi Data: Secara otomatis mengubah data (unpivot/melt) dari format wide (ratusan kolom) ke format long (siap untuk database).
+
+🗃️ Penyimpanan Database: Terintegrasi dengan MySQL menggunakan SQLAlchemy dan databases untuk operasi async.
 
 Diagram Alur Kerja
 
 User (atau sistem otomatis) memanggil endpoint POST /scrape-and-save.
 
-FastAPI menerima permintaan dan memanggil scraper.py.
+FastAPI menerima permintaan dan memanggil fungsi orkestrator di scraper.py.
 
 scraper.py menjalankan Selenium (secara headless) untuk membuka website SISKA Jatim, memilih "Kab. Blitar" dan "Pasar Wlingi", lalu mengambil data harga H-1.
 
-Data mentah (format wide) dibersihkan dan ditransformasi menjadi format long menggunakan Pandas.
+Data mentah (format wide) dibersihkan oleh fungsi clean_siska_data() menggunakan Pandas.
 
-Data bersih (format long) dikembalikan ke main.py.
+Data bersih ditransformasi menjadi format long oleh fungsi transform_to_long_format().
+
+List data bersih (format long) dikembalikan ke main.py.
 
 main.py menyimpan data tersebut ke tabel harga_pasar di MySQL.
+
+Teknologi yang Digunakan
+
+Kategori
+
+Teknologi
+
+Versi/Spesifikasi
+
+Backend
+
+Python
+
+3.7+
+
+Framework API
+
+FastAPI
+
+0.100+
+
+Server
+
+Uvicorn
+
+Standar
+
+Database
+
+MySQL
+
+5.7+ / 8.0+
+
+Scraping
+
+Selenium
+
+4.x
+
+Data Handling
+
+Pandas
+
+2.x
+
+ORM/Konektor DB
+
+SQLAlchemy
+
+Core
+
+Konektor Async
+
+databases
+
+[mysql]
+
+Driver MySQL
+
+PyMySQL
+
+-
 
 Struktur Proyek
 
 /proyek_scraper
     |-- venv/               # Folder virtual environment
-    |-- temp_debug/         # Folder (dibuat otomatis) untuk menyimpan screenshot error
+    |-- temp_debug/         # (Otomatis dibuat) Menyimpan screenshot jika terjadi error
     |-- main.py             # Aplikasi utama FastAPI dan endpoint API
     |-- database.py         # Konfigurasi koneksi ke database MySQL
     |-- models.py           # Definisi skema tabel database (SQLAlchemy)
@@ -48,7 +124,7 @@ Google Chrome (ter-install di sistem Anda)
 
 # 1. Kloning atau download proyek ini
 # git clone ... (jika ada)
-# cd proyek_scraper
+cd proyek_scraper
 
 # 2. Buat virtual environment
 python -m venv venv
@@ -100,7 +176,7 @@ Cara Menjalankan
 
 Setelah semua setup selesai, ikuti 3 langkah ini untuk menjalankan aplikasi.
 
-Langkah 1: Buat Tabel Database
+1️⃣ Langkah 1: Buat Tabel Database
 
 Kita perlu membuat tabel harga_pasar di dalam db_scraper sesuai skema di models.py.
 
@@ -111,7 +187,7 @@ python models.py
 
 Output: Membuat tabel 'harga_pasar' ... Tabel berhasil dibuat.
 
-Langkah 2: Jalankan Server FastAPI
+2️⃣ Langkah 2: Jalankan Server FastAPI
 
 Jalankan server Uvicorn. Server ini akan terus berjalan dan menunggu perintah.
 
@@ -120,7 +196,7 @@ uvicorn main:app --reload
 
 Output: Uvicorn running on http://127.0.0.1:8000
 
-Langkah 3: Trigger Scraper
+3️⃣ Langkah 3: Trigger Scraper
 
 Server yang berjalan tidak otomatis men-scrape. Anda perlu memicu-nya dengan cara memanggil API.
 
