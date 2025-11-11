@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+databases[mysql]
+pymysql
+selenium
+pandas
+openpyxl
