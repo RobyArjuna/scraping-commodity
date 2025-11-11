@@ -1,7 +1,6 @@
 import databases
 import sqlalchemy
 
-# --- GANTI BAGIAN INI DENGAN MILIK ANDA ---
 DB_USER = "root"
 DB_PASSWORD = ""
 DB_HOST = "localhost"

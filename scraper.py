@@ -13,11 +13,11 @@ from fastapi.concurrency import run_in_threadpool
 # -----------------------------------------------------------------
 # --- FUNGSI 1: KODE SCRAPING ANDA (SUDAH DIMODIFIKASI) ---
 # -----------------------------------------------------------------
-def scrape_siska_harga():
+def scrape_siska_harga(target_date: datetime):
     """
     Scraper untuk mengambil data harga pasar dari SISKA Jatim.
     MODIFIKASI:
-    - Mengambil data H-1 (kemarin) saja, agar cepat untuk API.
+    - Menerima 'target_date' sebagai parameter.
     - Tidak lagi menyimpan ke file CSV/Excel, tapi me-return DataFrame.
     """
     print("Memulai 'scrape_siska_harga'...")
@@ -60,16 +60,15 @@ def scrape_siska_harga():
         time.sleep(5) 
         
         # --- MODIFIKASI UNTUK API ---
-        # Kita hanya ambil data 1 HARI SAJA (kemarin), agar API responsif.
-        # Mengambil data berbulan-bulan via API akan timeout.
-        yesterday = datetime.now() - timedelta(days=1)
-        start_date = yesterday
-        end_date = yesterday
+        # Kita mengambil data dari 'target_date' yang dioper dari API
+        start_date = target_date
+        end_date = target_date
         
         total_days = (end_date - start_date).days + 1
         
         print("="*60)
-        print(f"PERIODE: {start_date.strftime('%Y-%m-%d')} (H-1 Saja)")
+        # 1. HAPUS TULISAN "(H-1 Saja)"
+        print(f"PERIODE: {start_date.strftime('%Y-%m-%d')}")
         print("="*60)
         
         current_date = start_date
@@ -300,19 +299,35 @@ def transform_to_long_format(df_clean: pd.DataFrame, kabupaten: str, pasar: str)
 # -----------------------------------------------------------------
 # --- FUNGSI 4: WRAPPER UTAMA (DIMODIFIKASI) ---
 # -----------------------------------------------------------------
-async def run_scrape_and_clean():
+async def run_scrape_and_clean(tanggal_str: str | None = None):
     """
     Orkestrator: Menjalankan scraping, cleaning, dan transformasi.
     Semua fungsi 'sync' (Selenium, Pandas) dijalankan di thread pool.
+    (Kita asumsikan 'tanggal_str' sudah valid jika ada,
+     karena sudah divalidasi oleh main.py)
     """
     print("Memulai job 'run_scrape_and_clean'...")
+
+    # --- LOGIKA TANGGAL (LEBIH SEDERHANA) ---
+    target_date = None
+    if tanggal_str:
+        # Kita bisa percaya format ini benar (YYYY-MM-DD)
+        # karena main.py sudah memvalidasinya.
+        target_date = datetime.strptime(tanggal_str, "%Y-%m-%d")
+        print(f"Target tanggal di-set ke: {tanggal_str}")
+    else:
+        # Jika tidak ada tanggal diberikan, gunakan default (H-1)
+        print("Tidak ada tanggal diberikan, menggunakan default (H-1).")
+        target_date = datetime.now() - timedelta(days=1)
+    # ------------------------------
     
     # 1. Scrape (Selenium, butuh thread pool)
     # Kita hardcode nama pasar, bisa juga dijadikan parameter
     KABUPATEN = "Kabupaten Blitar"
     PASAR = "Pasar Wlingi"
     
-    df_wide = await run_in_threadpool(scrape_siska_harga)
+    # 2. PERBAIKAN KRITIS: Oper 'target_date' ke fungsi scraper
+    df_wide = await run_in_threadpool(scrape_siska_harga, target_date)
     
     if df_wide is None:
         print("Scraping tidak menghasilkan data. Berhenti.")

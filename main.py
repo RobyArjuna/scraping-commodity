@@ -1,10 +1,9 @@
 from fastapi import FastAPI, HTTPException
-
+from datetime import datetime  # Pastikan ini diimpor
 from database import database
-# --- PERUBAHAN DI SINI ---
-from models import harga_pasar  # Impor tabel 'harga_pasar' yang baru
-# -------------------------
+from models import harga_pasar
 from scraper import run_scrape_and_clean
+import traceback  # Impor traceback untuk error
 
 app = FastAPI(title="Scraper API")
 
@@ -28,27 +27,43 @@ def read_root():
     return {"message": "Selamat datang di Scraper API. Gunakan endpoint POST /scrape-and-save untuk memulai."}
 
 @app.post("/scrape-and-save")
-async def scrape_and_save_data():
+async def scrape_and_save_data(tanggal: str | None = None):
     """
     Endpoint ini akan memicu proses scraping, cleaning,
     transformasi (melt), dan penyimpanan ke database.
+
+    Anda bisa menambahkan query parameter ?tanggal=YYYY-MM-DD
+    untuk mengambil data di tanggal spesifik.
     """
-    print("Menerima permintaan di /scrape-and-save...")
+    print(f"Menerima permintaan di /scrape-and-save... Tanggal diminta: {tanggal if tanggal else 'Default (H-1)'}")
+    
+    # --- BLOK 1: VALIDASI INPUT ---
+    # Kita cek dulu input 'tanggal'.
+    if tanggal:
+        try:
+            # Coba validasi formatnya
+            datetime.strptime(tanggal, "%Y-%m-%d")
+        except ValueError:
+            # Jika format salah, langsung kirim error 400 ke user dan STOP
+            print(f"Format tanggal salah: {tanggal}")
+            raise HTTPException(
+                status_code=400, # 400 Bad Request
+                detail=f"Format tanggal '{tanggal}' salah. Harap gunakan format YYYY-MM-DD."
+            )
+            
+    # --- BLOK 2: PROSES UTAMA ---
+    # Jika kode sampai di sini, artinya 'tanggal' aman (valid atau None).
+    # Kita HANYA perlu SATU blok try...except untuk menjalankan scraper.
     try:
-        # 1. Panggil fungsi orkestrator
-        # Ini sekarang mengembalikan data LONG (list of dicts)
-        data_to_save = await run_scrape_and_clean()
+        # Panggil scraper dengan tanggal (atau None)
+        data_to_save = await run_scrape_and_clean(tanggal_str=tanggal)
         
         if not data_to_save:
             print("Tidak ada data baru untuk disimpan.")
             return {"status": "success", "message": "Proses selesai, namun tidak ada data baru untuk disimpan."}
 
-        # 2. Siapkan query untuk memasukkan data
-        # --- PERUBAHAN DI SINI ---
-        query = harga_pasar.insert() # Gunakan tabel 'harga_pasar'
-        # -------------------------
-        
-        # 3. Eksekusi query
+        # Simpan ke database
+        query = harga_pasar.insert()
         await database.execute_many(query=query, values=data_to_save)
         
         print(f"Berhasil menyimpan {len(data_to_save)} item ke database.")
@@ -59,8 +74,10 @@ async def scrape_and_save_data():
         }
         
     except Exception as e:
-        print(f"Terjadi error: {e}")
-        # Cetak traceback untuk info lebih detail
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Terjadi error: {e}")
+        # Jika terjadi error saat scraping (Selenium, dll), tangkap di sini
+        print(f"Terjadi error internal saat scraping: {e}")
+        traceback.print_exc() # Cetak error detail ke konsol
+        raise HTTPException(
+            status_code=500, # 500 Internal Server Error
+            detail=f"Terjadi error internal pada server: {e}"
+        )
